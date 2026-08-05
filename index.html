@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>研究流程图 · Study Flow Diagram</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F5F6F3;--surface:#fff;--ink:#1B2733;--soft:#57626C;--line:#C9D0CC;--teal:#1F6F63;--clay:#AF4238;--amber:#C6872B;--navy:#22385C;}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans SC',sans-serif;}
+header{padding:40px 6vw 18px;border-bottom:1px solid var(--line);}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--clay);letter-spacing:.14em;text-transform:uppercase;}
+h1{font-family:'Noto Serif SC',serif;font-weight:900;font-size:clamp(24px,3vw,36px);margin:8px 0;}
+header p{color:var(--soft);max-width:720px;line-height:1.7;font-size:14.5px;}
+.wrap{padding:30px 6vw 80px;display:grid;grid-template-columns:1fr 340px;gap:30px;align-items:start;}
+@media (max-width:960px){.wrap{grid-template-columns:1fr;}}
+.diagram-card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:24px 18px 16px;}
+svg{width:100%;height:auto;font-family:'Noto Sans SC',sans-serif;}
+.node{cursor:pointer;}
+.node rect.box{fill:#fff;stroke:var(--navy);stroke-width:1.3;transition:stroke-width .15s, filter .15s;}
+.node.active rect.box{stroke-width:2.6;filter:drop-shadow(0 2px 6px rgba(27,39,51,.2));}
+.node:hover rect.box{stroke-width:2;}
+.node text.title{font-weight:700;font-size:12px;fill:var(--ink);}
+.node text.sub{font-size:9.6px;fill:var(--soft);}
+.mini text.title{font-size:10px;font-weight:700;}
+.band-label{font-size:11px;fill:var(--soft);font-family:'IBM Plex Mono',monospace;letter-spacing:.05em;}
+.panel{position:sticky;top:20px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:26px 26px;min-height:420px;}
+.panel .k{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--clay);text-transform:uppercase;letter-spacing:.08em;}
+.panel h2{font-family:'Noto Serif SC',serif;font-weight:700;font-size:20px;margin:8px 0 12px;line-height:1.4;}
+.box2{background:#F0F2EE;border-left:3px solid var(--teal);border-radius:6px;padding:12px 15px;margin-top:14px;font-size:13.5px;line-height:1.7;}
+.box2 .t{font-weight:700;color:var(--teal);margin-bottom:4px;}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:11.5px;color:var(--soft);font-family:'IBM Plex Mono',monospace;}
+.legend span{display:inline-flex;align-items:center;gap:6px;}
+.sw{width:12px;height:12px;border-radius:2px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">Study Flow Diagram</div>
+  <h1>研究流程图 —— 标准方框 + 箭头式呈现</h1>
+  <p>这是SCI论文方法学部分最常见的流程图样式：矩形代表分析步骤或产出，箭头代表先后顺序，分支/汇合代表数据的拆分与合并。点击任意方框，右侧会显示这一步的详细说明。</p>
+</header>
+<div class="wrap">
+  <div class="diagram-card">
+    <svg id="flow" viewBox="0 0 640 1250"></svg>
+    <div class="legend">
+      <span><i class="sw" style="background:#1F6F63"></i>阶段一 · 数据准备</span>
+      <span><i class="sw" style="background:#C6872B"></i>阶段二 · 变量筛选与建模</span>
+      <span><i class="sw" style="background:#AF4238"></i>阶段三 · 性能评估与解释</span>
+    </div>
+  </div>
+  <div class="panel" id="panel">
+    <div class="k">点击流程图任意方框</div>
+    <h2>开始探索</h2>
+    <div class="box2"><div class="t">提示</div>流程图从上到下按分析顺序排列，共三个阶段、12个主要步骤。点击任意方框查看这一步做什么、为什么需要、产出什么。</div>
+  </div>
+</div>
+<script>
+const NS="http://www.w3.org/2000/svg";
+function el(tag,attrs){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+const svg=document.getElementById('flow');
+
+const defs=el('defs',{});
+const marker=el('marker',{id:'arrow',markerWidth:8,markerHeight:8,refX:6,refY:3,orient:'auto',markerUnits:'strokeWidth'});
+marker.appendChild(el('path',{d:'M0,0 L0,6 L7,3 z',fill:'#57626C'}));
+defs.appendChild(marker);
+svg.appendChild(defs);
+
+function line(x1,y1,x2,y2,withArrow){
+  const attrs={x1,y1,x2,y2,stroke:'#57626C','stroke-width':1.3};
+  if(withArrow) attrs['marker-end']='url(#arrow)';
+  svg.appendChild(el('line',attrs));
+}
+function branchOut(xParent,yParentBottom,childXs,yChildTop){
+  const yMid=(yParentBottom+yChildTop)/2;
+  line(xParent,yParentBottom,xParent,yMid,false);
+  line(Math.min(...childXs),yMid,Math.max(...childXs),yMid,false);
+  childXs.forEach(cx=>line(cx,yMid,cx,yChildTop,true));
+}
+function mergeIn(childXs,yChildBottom,xParent,yParentTop){
+  const yMid=(yChildBottom+yParentTop)/2;
+  childXs.forEach(cx=>line(cx,yChildBottom,cx,yMid,false));
+  line(Math.min(...childXs),yMid,Math.max(...childXs),yMid,false);
+  line(xParent,yMid,xParent,yParentTop,true);
+}
+function band(y1,y2,color,label){
+  svg.appendChild(el('rect',{x:14,y:y1,width:612,height:y2-y1,fill:color,opacity:0.055,rx:4}));
+  const t=el('text',{x:22,y:y1+16,class:'band-label',fill:color});t.textContent=label;svg.appendChild(t);
+}
+function wrapChars(text,maxChars){
+  const lines=[]; let cur='';
+  for(const ch of text){
+    if(ch===' '&&cur.length>=maxChars*0.6){lines.push(cur);cur='';continue;}
+    cur+=ch;
+    if(cur.length>=maxChars){lines.push(cur);cur='';}
+  }
+  if(cur) lines.push(cur);
+  return lines;
+}
+
+const nodeMeta = {};
+function box(id,x,y,w,h,title,sub,color,mini){
+  const g=el('g',{class:'node'+(mini?' mini':''),id:'n-'+id});
+  g.appendChild(el('rect',{class:'box',x,y,width:w,height:h,rx:3}));
+  g.appendChild(el('rect',{x,y,width:4,height:h,fill:color}));
+  const titleY = sub ? y+h/2-4 : y+h/2+4;
+  const titleEl=el('text',{class:'title',x:x+w/2,y:titleY,'text-anchor':'middle'});
+  titleEl.textContent=title; g.appendChild(titleEl);
+  if(sub){
+    const maxChars = Math.max(8, Math.floor((w-14)/6.6));
+    const lines = wrapChars(sub,maxChars).slice(0,2);
+    lines.forEach((ln,i)=>{
+      const subEl=el('text',{class:'sub',x:x+w/2,y:y+h/2+10+i*11,'text-anchor':'middle'});
+      subEl.textContent=ln; g.appendChild(subEl);
+    });
+  }
+  g.addEventListener('click',()=>select(id));
+  svg.appendChild(g);
+  nodeMeta[id]={x,y,w,h};
+}
+
+const CX=320, FULLW=460, FULLX=CX-FULLW/2;
+
+// ---- stage bands ----
+band(16,486,'#1F6F63','阶段一 · 数据准备');
+band(494,812,'#C6872B','阶段二 · 变量筛选与建模');
+band(818,1210,'#AF4238','阶段三 · 性能评估与解释');
+
+// ---- Stage 1 ----
+box('start',FULLX,30,FULLW,64,'原始数据','401例ICU患者 · 35个临床特征（结局：耐药/非耐药）','#1F6F63');
+line(CX,94,CX,134,true);
+box('datapre',FULLX,134,FULLW,64,'数据预处理 (Step 0–3)','包管理 → 全局设置 → 数据读取 → 变量类型识别','#1F6F63');
+branchOut(CX,198,[210,430],238);
+box('train',110,238,200,50,'训练集','n = 281','#1F6F63');
+box('valid',330,238,200,50,'验证集','n = 120','#1F6F63');
+mergeIn([210,430],288,CX,328);
+box('table1',FULLX,328,FULLW,54,'Table 1','训练集 vs 验证集 基线特征比较','#1F6F63');
+line(CX,382,CX,418,true);
+box('table2',FULLX,418,FULLW,54,'Table 2','耐药组 vs 非耐药组 单因素分析（训练集）','#1F6F63');
+
+// ---- Stage 2 ----
+line(CX,472,CX,508,true);
+box('fig1',FULLX,508,FULLW,54,'Figure 1','LASSO变量筛选（10折交叉验证）','#C6872B');
+line(CX,562,CX,598,true);
+box('table4fig2',FULLX,598,FULLW,62,'Table 4 + Figure 2','多因素Logistic回归 + 列线图(Nomogram)','#C6872B');
+line(CX,660,CX,696,true);
+box('step7',FULLX,696,FULLW,46,'Step 7','七种机器学习模型训练','#C6872B');
+line(CX,742,CX,756,false);
+const modelNames=['LR','KNN','RF','DT','NN','XGB','LGB'];
+const miniW=58, miniGap=9;
+modelNames.forEach((m,i)=>{
+  const mx=FULLX+i*(miniW+miniGap);
+  box('m_'+m,mx,756,miniW,40,m,'',i<5?'#C6872B':'#C6872B',true);
+});
+
+// ---- Stage 3 ----
+line(CX,796,CX,832,true);
+box('table5',FULLX,832,FULLW,58,'Table 5','模型性能评估（按验证集AUC选出最优模型）','#AF4238');
+branchOut(CX,890,[160,320,480],926);
+box('fig3',85,926,150,58,'Figure 3','ROC曲线（区分能力）','#AF4238');
+box('fig4',245,926,150,58,'Figure 4','校准曲线（预测概率是否准）','#AF4238');
+box('fig5',405,926,150,58,'Figure 5','DCA决策曲线（临床净获益）','#AF4238');
+mergeIn([160,320,480],984,CX,1020);
+box('fig6',FULLX,1020,FULLW,62,'Figure 6A–D','SHAP可解释性分析（最优模型）','#AF4238');
+line(CX,1082,CX,1118,true);
+box('final',FULLX,1118,FULLW,70,'最终产出','可用于临床决策的耐药风险预测工具（列线图 + 最优模型）','#AF4238');
+
+// ---- detail content ----
+const details = {
+ start:{title:'原始数据',cat:'阶段一 · 数据准备',body:[
+   ['做什么','纳入401例ICU患者，收集35个临床特征，结局变量为是否感染耐药菌（Susceptible / Resistant）。'],
+   ['为什么需要','这是整个研究的地基——样本量、变量覆盖面、结局定义是否清晰，决定了后续所有分析的可信度。'],
+   ['产出','经脱敏处理的结构化患者数据表。']
+ ]},
+ datapre:{title:'数据预处理',cat:'Step 0–3 · 阶段一',body:[
+   ['做什么','自动检测安装分析所需软件包；设定随机种子保证结果可重复；读取并校验数据；自动识别连续/分类变量类型。'],
+   ['为什么需要','为后续统计分析和建模打好地基，确保流程可重复、变量类型正确，检验方法才能选对。'],
+   ['产出','结构清晰、变量类型明确的可分析数据集。']
+ ]},
+ train:{title:'训练集 (n=281)',cat:'数据拆分',body:[['说明','用于"教"模型学习规律，相当于日常练习题。']]},
+ valid:{title:'验证集 (n=120)',cat:'数据拆分',body:[['说明','完全不参与模型训练，只用来"考"模型的真实能力，相当于没做过的期末考题。']]},
+ table1:{title:'Table 1 · 基线特征对比',cat:'阶段一',body:[
+   ['做什么','比较训练集与验证集患者的基本特征（年龄、性别、病情评分等）是否均衡。'],
+   ['为什么需要','确认两组"考卷难度一致"，否则后续用验证集检验模型的结果就没有说服力。'],
+   ['产出','一张两组特征对比表，附P值。']
+ ]},
+ table2:{title:'Table 2 · 单因素分析',cat:'阶段一',body:[
+   ['做什么','在训练集内部比较耐药组与非耐药组的特征差异。'],
+   ['为什么需要','为后续LASSO变量筛选提供第一批候选线索，也是与临床经验、既往文献对照的起点。'],
+   ['产出','耐药 vs 非耐药 单因素对比表。']
+ ]},
+ fig1:{title:'Figure 1 · LASSO变量筛选',cat:'Step 5 · 阶段二',body:[
+   ['做什么','用cv.glmnet对35个变量做10折交叉验证，自动挑出预测力最强的一批变量。'],
+   ['为什么需要','临床上不可能同时参考35个指标；LASSO像"海选"，自动淘汰冗余变量，保留关键信息。'],
+   ['产出','系数路径图 + 交叉验证曲线，精简后的核心变量子集。']
+ ]},
+ table4fig2:{title:'Table 4 + Figure 2 · 回归与列线图',cat:'Step 6 · 阶段二',body:[
+   ['做什么','对LASSO筛选变量做多因素Logistic回归，计算OR值；再据此生成可手算的列线图(Nomogram)。'],
+   ['为什么需要','给每个变量算出精确的风险倍数，并转化为医生查房时能直接使用的"纸质计算器"。'],
+   ['产出','OR值及95%CI表，个体化风险计算列线图。']
+ ]},
+ step7:{title:'Step 7 · 七模型训练',cat:'阶段二',body:[
+   ['做什么','同时训练LR/KNN/RF/DT/NN/XGB/LGB七种模型，用交叉验证/网格搜索寻找最佳参数。'],
+   ['为什么需要','不同模型各有优劣，同台竞技才能选出真正适合这份数据、适合临床落地的模型。'],
+   ['产出','7个训练完成、参数已调优的预测模型。']
+ ]},
+ table5:{title:'Table 5 · 模型性能评估',cat:'Step 8 · 阶段三',body:[
+   ['做什么','计算每个模型的AUC(DeLong 95%CI)、灵敏度、特异度、PPV、NPV、F1。'],
+   ['为什么需要','这是七个模型的"期末成绩单"，按验证集AUC选出最终推荐使用的模型。'],
+   ['产出','模型性能对比总表。']
+ ]},
+ fig3:{title:'Figure 3 · ROC曲线',cat:'Step 9 · 阶段三',body:[
+   ['做什么','训练集/验证集各画一张ROC曲线，直观展示各模型的区分能力。'],
+   ['为什么需要','把AUC数字变成一眼能看懂的曲线，越靠左上角说明模型区分耐药/非耐药的能力越强。'],
+   ['产出','训练集与验证集ROC曲线图。']
+ ]},
+ fig4:{title:'Figure 4 · 校准曲线',cat:'Step 10 · 阶段三',body:[
+   ['做什么','用LOESS平滑法检验模型预测的概率数字是否与实际发生比例吻合。'],
+   ['为什么需要','AUC高只说明排序对，校准曲线检验模型说的"70%风险"是不是真的准。'],
+   ['产出','预测概率 vs 实际发生率对比图。']
+ ]},
+ fig5:{title:'Figure 5 · DCA决策曲线',cat:'Step 11 · 阶段三',body:[
+   ['做什么','在0~45%阈值范围内，比较各模型相较"全治疗/全不治疗"策略的临床净获益。'],
+   ['为什么需要','回答终极问题：这个模型用在临床决策里，真的能让患者获益吗？'],
+   ['产出','净获益曲线图。']
+ ]},
+ fig6:{title:'Figure 6A–D · SHAP解释',cat:'Step 12 · 阶段三',body:[
+   ['做什么','拆解每个变量对最优模型预测结果的具体贡献：整体重要性、变量方向、非线性关系、个体化解释。'],
+   ['为什么需要','打开机器学习的"黑箱"，让医生知道模型判断的依据，提升临床可信度。'],
+   ['产出','变量重要性图、蜂群图、依赖图、个体患者瀑布图。']
+ ]},
+ final:{title:'最终产出',cat:'研究终点',body:[
+   ['做什么','整合列线图与验证集表现最优的模型，形成可供临床参考的耐药风险预测工具。'],
+   ['意义','医生可在患者入院早期、培养结果尚未回报时，提前估算耐药风险，辅助抗生素方案决策。']
+ ]}
+};
+modelNames.forEach(m=>{
+  const descs={LR:'Logistic回归 —— 最经典、最好解释',KNN:'K近邻 —— 参考最相似病例投票',RF:'随机森林 —— 多棵决策树投票',DT:'决策树 —— 逐层分叉判断',NN:'神经网络 —— 模拟神经元连接',XGB:'梯度提升树 —— 逐轮纠错',LGB:'轻量级梯度提升 —— 速度更快(可选)'};
+  details['m_'+m] = {title:m, cat:'Step 7 候选模型', body:[['简介',descs[m]]]};
+});
+
+function select(id){
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('active'));
+  document.getElementById('n-'+id).classList.add('active');
+  const d = details[id];
+  document.getElementById('panel').innerHTML = `
+    <div class="k">${d.cat}</div>
+    <h2>${d.title}</h2>
+    ${d.body.map(([k,v])=>`<div class="box2"><div class="t">${k}</div>${v}</div>`).join('')}
+  `;
+}
+</script>
+</body>
+</html>
