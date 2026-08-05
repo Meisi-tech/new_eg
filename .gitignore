@@ -1,0 +1,5 @@
+# 运行生成的图片与缓存
+output/
+__pycache__/
+*.pyc
+.venv/
