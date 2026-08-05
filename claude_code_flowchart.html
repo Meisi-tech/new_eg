@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code 信息处理流程图</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter+Tight:wght@600;700;800&family=Inter:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#15130f; --bg-panel:#1d1a15; --bg-panel-2:#262219; --bg-inset:#100e0b;
+  --border:#3a352a; --border-soft:#2a2620;
+  --text:#f0e9d8; --text-muted:#9c9484; --text-dim:#6b6558;
+  --accent:#e6a13c; --accent-soft:rgba(230,161,60,0.14);
+  --accent-2:#57b3a6; --accent-2-soft:rgba(87,179,166,0.14);
+  --accent-3:#cf6656; --accent-3-soft:rgba(207,102,86,0.14);
+  --font-display:'Inter Tight','PingFang SC','Microsoft YaHei',sans-serif;
+  --font-body:'Inter','PingFang SC','Microsoft YaHei',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  background:
+    radial-gradient(ellipse 900px 500px at 15% -5%, rgba(230,161,60,0.08), transparent),
+    radial-gradient(ellipse 700px 500px at 100% 10%, rgba(87,179,166,0.06), transparent),
+    var(--bg);
+  color:var(--text); font-family:var(--font-body); line-height:1.6; -webkit-font-smoothing:antialiased;
+  padding-bottom:80px;
+}
+::selection{ background:var(--accent); color:#15130f; }
+button{ font-family:inherit; cursor:pointer; }
+button:focus-visible, [tabindex]:focus-visible{ outline:2px solid var(--accent-2); outline-offset:2px; }
+.wrap{ max-width:1080px; margin:0 auto; padding:0 24px; }
+
+.hero{ padding:64px 0 32px; }
+.eyebrow{
+  font-family:var(--font-mono); font-size:12.5px; letter-spacing:0.16em; color:var(--accent-2);
+  text-transform:uppercase; display:flex; align-items:center; gap:10px; margin-bottom:18px;
+}
+.eyebrow::before{ content:''; width:8px; height:8px; border-radius:50%; background:var(--accent-2); box-shadow:0 0 0 3px var(--accent-2-soft); }
+h1{ font-family:var(--font-display); font-weight:800; font-size:clamp(28px,4.6vw,46px); line-height:1.18; letter-spacing:-0.01em; max-width:820px; }
+h1 .glow{ color:var(--accent); }
+.hero-sub{ margin-top:18px; font-size:16px; color:var(--text-muted); max-width:660px; }
+.hero-sub b{ color:var(--text); font-weight:600; }
+
+.section-head{ margin:52px 0 22px; }
+.section-title{ font-family:var(--font-display); font-weight:700; font-size:24px; display:flex; align-items:baseline; gap:12px; }
+.section-title .num{ font-family:var(--font-mono); color:var(--text-dim); font-size:14px; }
+.section-desc{ color:var(--text-muted); margin-top:8px; max-width:660px; font-size:14.5px; }
+
+/* legend */
+.legend{ display:flex; flex-wrap:wrap; gap:18px; margin-bottom:8px; }
+.legend-item{ display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:12px; color:var(--text-muted); }
+.legend-swatch{ width:20px; height:12px; border-radius:3px; flex:none; }
+.legend-line{ width:24px; height:0; border-top:2px solid; flex:none; }
+
+/* ---------- FLOW CANVAS ---------- */
+.flow-scroll{ overflow-x:auto; padding:20px 0 30px; }
+.flow-hint{ font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim); margin-bottom:6px; }
+#flowCanvas{
+  position:relative; width:1000px; min-height:1260px; margin:0 auto;
+}
+.fnode{
+  position:absolute; border-radius:12px; border:1px solid var(--border);
+  background:var(--bg-panel); padding:12px 16px; text-align:center;
+  cursor:pointer; transition:border-color .2s, box-shadow .2s, transform .15s;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  overflow:visible;
+}
+.fnode:hover{ transform:translateY(-2px); border-color:var(--accent-2); }
+.fnode.active{
+  border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);
+  background:linear-gradient(180deg, var(--accent-soft), var(--bg-panel));
+}
+.fnode.decision{ border-style:dashed; border-color:#57696633; background:var(--bg-panel-2); }
+.fnode.decision.active{ border-color:var(--accent); border-style:solid; }
+.fnode .ftitle{ font-family:var(--font-display); font-weight:700; font-size:14.5px; }
+.fnode .fsub{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); margin-top:4px; letter-spacing:0.02em; }
+.fnode.exit-node .ftitle{ color:var(--accent-2); }
+
+.fnote{
+  position:absolute; border-radius:10px; border:1px dashed var(--border);
+  background:var(--bg-inset); padding:12px 14px; font-size:12px; color:var(--text-muted);
+}
+.fnote .fn-title{ font-family:var(--font-mono); font-size:10.5px; color:var(--accent-2); letter-spacing:0.08em; margin-bottom:5px; }
+
+.farrow{
+  position:absolute; display:flex; align-items:center; justify-content:center;
+  color:var(--text-dim); font-size:16px;
+}
+
+.fpath-label{
+  position:absolute; font-family:var(--font-mono); font-size:11px;
+  padding:3px 9px; border-radius:12px; white-space:nowrap;
+}
+.fpath-label.exit{ color:var(--accent-2); background:var(--accent-2-soft); border:1px solid var(--accent-2); }
+.fpath-label.loop{ color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent); }
+
+#loopSvg{ position:absolute; top:0; left:0; width:1000px; height:1260px; pointer-events:none; }
+.p-normal{ stroke:#4a453a; stroke-width:2; fill:none; }
+.p-exit{ stroke:#57b3a6; stroke-width:2.4; fill:none; }
+.p-loop{
+  stroke:#e6a13c; stroke-width:2.6; fill:none;
+  stroke-dasharray:8 6; animation:dashflow 1.1s linear infinite;
+}
+@keyframes dashflow{ to{ stroke-dashoffset:-28; } }
+.p-loop.pulse, .p-exit.pulse{ stroke-width:4.5; filter:drop-shadow(0 0 4px currentColor); }
+
+/* ---------- INFO PANEL ---------- */
+.info-panel{
+  margin-top:8px; background:var(--bg-inset); border:1px solid var(--border-soft); border-radius:14px;
+  padding:22px 24px; min-height:96px;
+}
+.info-panel .ip-mode{ font-family:var(--font-mono); font-size:11px; color:var(--accent-2); letter-spacing:0.1em; margin-bottom:6px; }
+.info-panel h4{ font-family:var(--font-display); font-size:17px; margin-bottom:8px; }
+.info-panel p{ font-size:14px; color:var(--text-muted); }
+.info-panel .ip-hook{
+  display:inline-block; margin-top:10px; font-family:var(--font-mono); font-size:11.5px;
+  color:var(--accent-3); background:var(--accent-3-soft); border:1px solid var(--accent-3);
+  padding:3px 10px; border-radius:12px;
+}
+
+/* ---------- DEMO CONTROLS ---------- */
+.demo-controls{
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  margin-top:16px; padding:14px 18px; background:var(--bg-panel-2); border:1px solid var(--border); border-radius:12px;
+}
+.demo-btns{ display:flex; gap:8px; }
+.demo-btn{
+  background:var(--bg-panel); border:1px solid var(--border); color:var(--text);
+  padding:8px 16px; border-radius:8px; font-size:13px; font-family:var(--font-mono);
+  transition:border-color .15s;
+}
+.demo-btn:hover{ border-color:var(--accent-2); }
+.demo-btn.primary{ background:var(--accent); color:#15130f; border-color:var(--accent); font-weight:600; }
+.demo-btn:disabled{ opacity:0.35; cursor:not-allowed; }
+.demo-step-label{ font-family:var(--font-mono); font-size:12px; color:var(--text-dim); }
+
+footer{ margin-top:60px; padding-top:24px; border-top:1px solid var(--border-soft); }
+footer p{ font-size:12.5px; color:var(--text-dim); font-family:var(--font-mono); line-height:1.8; }
+footer a{ color:var(--text-dim); }
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:0.01ms !important; transition-duration:0.01ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section class="hero">
+    <div class="eyebrow">CLAUDE CODE · 信息处理流程图</div>
+    <h1>你的一句话，是怎么<span class="glow">流转</span>成一次代码修改的？</h1>
+    <p class="hero-sub">
+      下面这张图画的不是"功能列表"，而是<b>信息本身的流动路径</b>——你的输入从哪里进来，
+      经过哪些模块被加工、判断、执行，又是怎么循环回去的。所有节点都能点开看细节，
+      底部还有一个可以逐步播放的真实案例，带你走完完整的 4 轮循环。
+    </p>
+  </section>
+
+  <!-- LEGEND -->
+  <section>
+    <div class="section-head">
+      <div class="section-title"><span class="num">图例</span></div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--bg-panel); border:1px solid var(--border);"></span>处理节点（信息被加工）</div>
+      <div class="legend-item"><span class="legend-swatch" style="background:var(--bg-panel-2); border:1px dashed #57696655;"></span>决策节点（分支判断）</div>
+      <div class="legend-item"><span class="legend-line" style="border-color:#4a453a;"></span>普通信息流</div>
+      <div class="legend-item"><span class="legend-line" style="border-color:#57b3a6;"></span>任务完成，退出循环</div>
+      <div class="legend-item"><span class="legend-line" style="border-color:#e6a13c;"></span>任务未完成，回到上一轮</div>
+    </div>
+  </section>
+
+  <!-- FLOW DIAGRAM -->
+  <section>
+    <div class="section-head">
+      <div class="section-title"><span class="num">01</span> 完整流程图</div>
+      <p class="section-desc">点击任意一个方框，下方信息面板会显示：这一步"吃进"什么信息、"吐出"什么信息、触发了哪个 Hook。</p>
+    </div>
+
+    <div class="flow-hint">💡 手机上可以左右滑动查看完整流程图</div>
+    <div class="flow-scroll">
+      <div id="flowCanvas">
+        <svg id="loopSvg" viewBox="0 0 1000 1260">
+          <path class="p-normal" d="M 420 350 C 400 385, 350 390, 330 420" />
+          <path class="p-normal" d="M 580 350 C 620 385, 680 390, 700 420" />
+          <path class="p-exit" id="pathExit" d="M 400 1040 C 405 1075, 415 1090, 420 1120" />
+          <path class="p-normal" d="M 700 510 C 700 750, 650 950, 610 1120" />
+          <path class="p-loop" id="pathLoop" d="M 210 990 C 100 990, 100 300, 350 300" />
+        </svg>
+
+        <div class="fpath-label loop" style="left:26px; top:636px;">否，继续下一轮</div>
+        <div class="fpath-label exit" style="left:428px; top:1068px;">是，任务完成</div>
+
+        <!-- spine -->
+        <div class="fnode" data-id="n1" style="left:370px; top:20px; width:260px; height:70px;">
+          <div class="ftitle">用户输入</div>
+          <div class="fsub">触发 UserPromptSubmit</div>
+        </div>
+        <div class="farrow" style="left:485px; top:95px; width:30px; height:30px;">▼</div>
+
+        <div class="fnode" data-id="n2" style="left:370px; top:130px; width:260px; height:80px;">
+          <div class="ftitle">上下文组装</div>
+          <div class="fsub">拼装本轮"记忆包"</div>
+        </div>
+        <div class="farrow" style="left:485px; top:215px; width:30px; height:30px;">▼</div>
+
+        <div class="fnode decision" data-id="n3" style="left:350px; top:250px; width:300px; height:100px;">
+          <div class="ftitle">模型推理</div>
+          <div class="fsub">决策：直接回复 或 调用工具？</div>
+        </div>
+
+        <!-- right branch: direct reply -->
+        <div class="fnode exit-node" data-id="n4R" style="left:590px; top:420px; width:220px; height:90px;">
+          <div class="ftitle">直接文字回复</div>
+          <div class="fsub">不需要动手，纯问答</div>
+        </div>
+
+        <!-- left branch: tool loop -->
+        <div class="fnode" data-id="n4L" style="left:210px; top:420px; width:240px; height:70px;">
+          <div class="ftitle">选择工具</div>
+          <div class="fsub">按需加载 Skill / MCP / Subagent</div>
+        </div>
+        <div class="farrow" style="left:315px; top:485px; width:30px; height:30px;">▼</div>
+
+        <div class="fnode" data-id="n5L" style="left:210px; top:520px; width:240px; height:70px;">
+          <div class="ftitle">权限检查</div>
+          <div class="fsub">触发 PreToolUse</div>
+        </div>
+        <div class="farrow" style="left:315px; top:585px; width:30px; height:30px;">▼</div>
+
+        <div class="fnode" data-id="n6L" style="left:210px; top:620px; width:240px; height:90px;">
+          <div class="ftitle">执行工具</div>
+          <div class="fsub">编辑前自动打 Checkpoint</div>
+        </div>
+        <div class="farrow" style="left:315px; top:705px; width:30px; height:30px;">▼</div>
+
+        <div class="fnode" data-id="n7L" style="left:210px; top:740px; width:240px; height:70px;">
+          <div class="ftitle">结果返回</div>
+          <div class="fsub">触发 PostToolUse</div>
+        </div>
+        <div class="farrow" style="left:315px; top:805px; width:30px; height:30px;">▼</div>
+
+        <div class="fnode" data-id="n8L" style="left:210px; top:840px; width:240px; height:70px;">
+          <div class="ftitle">写回上下文窗口</div>
+          <div class="fsub">快满时自动压缩</div>
+        </div>
+        <div class="farrow" style="left:315px; top:905px; width:30px; height:30px;">▼</div>
+
+        <div class="fnode decision" data-id="n9L" style="left:210px; top:940px; width:240px; height:100px;">
+          <div class="ftitle">循环判断</div>
+          <div class="fsub">任务完成了吗？</div>
+        </div>
+
+        <div class="fnode exit-node" data-id="n10" style="left:350px; top:1120px; width:300px; height:90px;">
+          <div class="ftitle">回复用户 / 结束本轮</div>
+          <div class="fsub">触发 Stop · 会话存为 JSONL</div>
+        </div>
+
+        <!-- floating notes -->
+        <div class="fnote" style="left:650px; top:130px; width:300px;">
+          <div class="fn-title">上下文来源</div>
+          CLAUDE.md（项目说明书）+ Auto Memory（自动记忆，开头 200 行/25KB）+ 历史对话，都在"上下文组装"这一步被读取。
+        </div>
+        <div class="fnote" style="left:650px; top:1120px; width:300px;">
+          <div class="fn-title">会话持久化</div>
+          每条消息、每次工具调用都会实时写入本地 <span style="font-family:var(--font-mono)">~/.claude/projects/</span> 的 JSONL 文件，支持断点续聊、分叉出新会话。
+        </div>
+      </div>
+    </div>
+
+    <div class="info-panel" id="infoPanel">
+      <div class="ip-mode">静态说明</div>
+      <h4>点击流程图里的任意节点</h4>
+      <p>下方会显示这一步具体在处理什么信息，以及它触发了哪个 Hook（如果有的话）。</p>
+    </div>
+  </section>
+
+  <!-- INTERACTIVE DEMO -->
+  <section>
+    <div class="section-head">
+      <div class="section-title"><span class="num">02</span> 播放真实案例：修复失败的测试</div>
+      <p class="section-desc">这个例子会完整走 4 轮循环——先诊断、再定位、再修复、最后验证。点"下一步"，流程图里对应的节点会高亮，信息面板会同步显示这一步发生了什么。</p>
+    </div>
+    <div class="demo-controls">
+      <div class="demo-btns">
+        <button class="demo-btn" id="btnPrev">← 上一步</button>
+        <button class="demo-btn primary" id="btnPlay">▶ 自动播放</button>
+        <button class="demo-btn" id="btnNext">下一步 →</button>
+        <button class="demo-btn" id="btnReset">重放</button>
+      </div>
+      <span class="demo-step-label" id="stepLabel">STEP 1 / 31</span>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      内容整理自 Claude Code 官方文档（docs.claude.com/en/docs/claude-code），核心参考页面：how-claude-code-works、hooks、sub-agents、mcp、memory、permissions、checkpointing。<br>
+      具体细节以官方文档为准：<a href="https://docs.claude.com/en/docs/claude-code/overview" target="_blank" rel="noopener">docs.claude.com/en/docs/claude-code</a>
+    </p>
+  </footer>
+
+</div>
+
+<script>
+/* ============ STATIC NODE DETAILS ============ */
+const DETAILS = {
+  n1: { title:'用户输入', hook:'UserPromptSubmit',
+    text:'你在终端里敲的一句话或任务描述，是整个循环的起点。如果配置了 UserPromptSubmit 这个 Hook，会先经过它——可以在这里自动往你的输入里注入额外上下文，甚至直接拦截这条消息。' },
+  n2: { title:'上下文组装', hook:null,
+    text:'把这一轮 Claude 能"看到"的所有信息拼成一个完整的包：系统指令 + CLAUDE.md（项目说明书）+ Auto Memory（自动记忆）+ 到目前为止的对话历史 + 你刚输入的这句话。这个"包"就是喂给模型的全部原料。' },
+  n3: { title:'模型推理（决策点）', hook:null,
+    text:'Claude 模型真正"思考"的地方。读完上下文包后判断：这轮任务只是问答，还是需要动手操作？如果只是问答，直接生成文字回复；如果需要动手，就决定调用哪个工具。这是整个循环里唯一做"决策"的环节，后面所有模块都是在执行这个决策。' },
+  n4R: { title:'直接文字回复', hook:null,
+    text:'模型判断不需要动手操作，直接生成文字作为回复。这条分支不经过工具、不产生文件变化，本轮循环到这里就结束了。' },
+  n4L: { title:'选择工具', hook:null,
+    text:'模型决定了要用哪个工具——读文件、搜索、跑命令、联网查资料。如果任务比较复杂，这一步也可能派生一个 Subagent（子代理），让它拿着独立的上下文窗口去做隔离调查，完成后只把结论汇报回来。Skills（技能）和 MCP（外部服务）也是在这一步被按需激活的，不用的东西不会占用上下文空间。' },
+  n5L: { title:'权限检查', hook:'PreToolUse',
+    text:'工具真正执行前的安全闸门。会检查当前的 Permission Mode：Default 模式下大部分操作要问你一声；Auto-accept 模式下文件编辑类操作自动放行；Plan 模式完全不动手，只分析。这一步会触发 PreToolUse 这个 Hook，你可以在这里加自定义规则，比如"禁止编辑某些受保护文件"。' },
+  n6L: { title:'执行工具', hook:null,
+    text:'真正干活的一步——读写文件、跑 shell 命令、搜索代码、连网查资料。如果是编辑文件，执行前会自动打一个 Checkpoint（快照），这样出问题了随时能一键撤销，不用担心"改坏了回不去"。' },
+  n7L: { title:'结果返回', hook:'PostToolUse',
+    text:'工具跑完之后，把结果（成功/失败、输出内容、报错信息）传回来。这一步会触发 PostToolUse 这个 Hook，很多人用它来做"编辑完文件自动跑一遍格式化工具"这类自动化。' },
+  n8L: { title:'写回上下文窗口', hook:null,
+    text:'刚才的工具结果，被当作新的一条信息加进上下文窗口，供下一轮推理使用。如果这时候上下文窗口快满了，会自动触发压缩（Compaction）——优先清理旧的工具输出，必要时再摘要早期对话，尽量保留你的原始诉求和关键代码片段。' },
+  n9L: { title:'循环判断（决策点）', hook:null,
+    text:'检查任务是不是已经完成了。没完成（比如测试还在失败）→ 回到"模型推理"，开始新一轮循环；完成了 → 进入"回复用户"，退出循环。这个节点决定了整个循环要转几圈——简单任务可能只转一圈，复杂的 bug 修复可能要转好几圈。' },
+  n10: { title:'回复用户 / 结束本轮', hook:'Stop',
+    text:'循环结束，Claude 用文字总结这轮做了什么。这一步会触发 Stop 这个 Hook；同时，这轮完整的对话——每条消息、每次工具调用——会被实时写入本地 ~/.claude/projects/ 下的 JSONL 文件，方便你之后恢复、回滚或分叉出新会话。' },
+};
+
+const flowCanvas = document.getElementById('flowCanvas');
+const infoPanel = document.getElementById('infoPanel');
+let mode = 'static'; // 'static' | 'demo'
+
+function showStatic(id){
+  mode = 'static';
+  const d = DETAILS[id];
+  if(!d) return;
+  infoPanel.innerHTML = `
+    <div class="ip-mode">静态说明</div>
+    <h4>${d.title}</h4>
+    <p>${d.text}</p>
+    ${d.hook ? `<div class="ip-hook">🪝 触发 ${d.hook}</div>` : ''}
+  `;
+}
+
+flowCanvas.querySelectorAll('.fnode').forEach(el=>{
+  el.setAttribute('tabindex','0');
+  el.setAttribute('role','button');
+  el.addEventListener('click', ()=>{
+    highlightNode(el.dataset.id);
+    showStatic(el.dataset.id);
+  });
+  el.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter' || e.key===' '){ e.preventDefault(); el.click(); }
+  });
+});
+
+function highlightNode(id){
+  flowCanvas.querySelectorAll('.fnode').forEach(n=>n.classList.remove('active'));
+  const target = flowCanvas.querySelector(`.fnode[data-id="${id}"]`);
+  if(target) target.classList.add('active');
+}
+
+/* ============ DEMO SEQUENCE ============ */
+const demoSteps = [
+  { node:'n1',  text:'用户输入："帮我修好失败的测试"——这句话作为最新消息进入流程。' },
+  { node:'n2',  text:'上下文组装：加载 CLAUDE.md + 历史对话 + 这句新指令，拼成完整上下文包。' },
+  { node:'n3',  text:'模型推理（第1轮）：这是个动手任务，判断需要调用工具，而不是直接回答。' },
+  { node:'n4L', text:'选择工具：先跑一遍测试套件，看看到底哪里坏了。' },
+  { node:'n5L', text:'权限检查：跑测试属于常见操作，Default 模式下问了一下，你点了同意。' },
+  { node:'n6L', text:'执行工具：$ npm test → 发现 3 个测试失败。' },
+  { node:'n7L', text:'结果返回：失败的错误堆栈信息回传给 Claude。' },
+  { node:'n8L', text:'写回上下文：模型现在"看到"了报错信息，知道问题出在 auth.js。' },
+  { node:'n9L', text:'循环判断：还没修好，任务未完成 → 回到"模型推理"，开始第2轮。' },
+  { node:'n3',  text:'模型推理（第2轮）：需要先定位问题代码，而不是直接瞎改。' },
+  { node:'n4L', text:'选择工具：这次用搜索 + 文件读取工具。' },
+  { node:'n5L', text:'权限检查：只读操作，风险低，自动放行。' },
+  { node:'n6L', text:'执行工具：搜出所有调用 validateToken 的地方，读懂 auth.js 第42行的校验逻辑。' },
+  { node:'n7L', text:'结果返回：相关文件内容回传给 Claude。' },
+  { node:'n8L', text:'写回上下文：模型现在完整理解了 token 校验的代码逻辑。' },
+  { node:'n9L', text:'循环判断：理解了问题，但还没动手改 → 继续，进入第3轮。' },
+  { node:'n3',  text:'模型推理（第3轮）：现在信息足够了，可以真正动手修复。' },
+  { node:'n4L', text:'选择工具：这次要用文件编辑工具。' },
+  { node:'n5L', text:'权限检查：文件修改类操作，Default 模式下弹出确认框，你点了同意。' },
+  { node:'n6L', text:'执行工具：编辑 auth.js——编辑前自动打了一个 Checkpoint 快照，随时可撤销。' },
+  { node:'n7L', text:'结果返回：文件编辑成功的结果回传。' },
+  { node:'n8L', text:'写回上下文：模型知道代码已经改了，但还没验证是否真的修好。' },
+  { node:'n9L', text:'循环判断：改完了，但还需要验证 → 继续，进入第4轮。' },
+  { node:'n3',  text:'模型推理（第4轮）：需要重新跑一遍测试来验证修复是否成功。' },
+  { node:'n4L', text:'选择工具：再跑一次测试套件。' },
+  { node:'n5L', text:'权限检查：跑命令操作，Default 模式下问了一下。' },
+  { node:'n6L', text:'执行工具：$ npm test → 全部 3 个测试通过 ✓' },
+  { node:'n7L', text:'结果返回：测试全部通过的结果回传。' },
+  { node:'n8L', text:'写回上下文：模型确认修复成功，任务真正完成了。' },
+  { node:'n9L', text:'循环判断：任务完成 → 退出循环，进入"回复用户"。' },
+  { node:'n10', text:'回复用户：已修好，3 个测试全部通过；触发 Stop hook，本轮对话存档为 JSONL。' },
+];
+
+let demoIdx = 0;
+let playTimer = null;
+const stepLabel = document.getElementById('stepLabel');
+const btnPrev = document.getElementById('btnPrev');
+const btnNext = document.getElementById('btnNext');
+const btnPlay = document.getElementById('btnPlay');
+const btnReset = document.getElementById('btnReset');
+const pathLoop = document.getElementById('pathLoop');
+const pathExit = document.getElementById('pathExit');
+
+function clearPulses(){
+  pathLoop.classList.remove('pulse');
+  pathExit.classList.remove('pulse');
+}
+
+function renderDemoStep(){
+  mode = 'demo';
+  clearPulses();
+  const step = demoSteps[demoIdx];
+  highlightNode(step.node);
+
+  // detect transition type for arrow pulsing
+  const next = demoSteps[demoIdx+1];
+  if(step.node === 'n9L' && next){
+    if(next.node === 'n3') pathLoop.classList.add('pulse');
+    if(next.node === 'n10') pathExit.classList.add('pulse');
+  }
+
+  infoPanel.innerHTML = `
+    <div class="ip-mode">演练进度 · 第 ${demoIdx+1} / ${demoSteps.length} 步</div>
+    <h4>${DETAILS[step.node] ? DETAILS[step.node].title : step.node}</h4>
+    <p>${step.text}</p>
+    ${DETAILS[step.node] && DETAILS[step.node].hook ? `<div class="ip-hook">🪝 触发 ${DETAILS[step.node].hook}</div>` : ''}
+  `;
+
+  stepLabel.textContent = `STEP ${demoIdx+1} / ${demoSteps.length}`;
+  btnPrev.disabled = demoIdx===0;
+  btnNext.disabled = demoIdx===demoSteps.length-1;
+
+  const activeEl = flowCanvas.querySelector(`.fnode[data-id="${step.node}"]`);
+  if(activeEl) activeEl.scrollIntoView({block:'nearest', inline:'center', behavior:'smooth'});
+}
+
+function stopPlay(){
+  if(playTimer){ clearInterval(playTimer); playTimer = null; btnPlay.textContent = '▶ 自动播放'; }
+}
+
+btnNext.addEventListener('click', ()=>{
+  stopPlay();
+  if(demoIdx < demoSteps.length-1){ demoIdx++; renderDemoStep(); }
+});
+btnPrev.addEventListener('click', ()=>{
+  stopPlay();
+  if(demoIdx > 0){ demoIdx--; renderDemoStep(); }
+});
+btnReset.addEventListener('click', ()=>{
+  stopPlay();
+  demoIdx = 0; renderDemoStep();
+});
+btnPlay.addEventListener('click', ()=>{
+  if(playTimer){ stopPlay(); return; }
+  btnPlay.textContent = '⏸ 暂停';
+  playTimer = setInterval(()=>{
+    if(demoIdx >= demoSteps.length-1){ stopPlay(); return; }
+    demoIdx++; renderDemoStep();
+  }, 1400);
+});
+
+renderDemoStep();
+</script>
+</body>
+</html>
